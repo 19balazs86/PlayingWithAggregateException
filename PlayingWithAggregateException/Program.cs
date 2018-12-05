@@ -7,13 +7,11 @@ using PlayingWithAggregateException.Handlers;
 
 namespace PlayingWithAggregateException
 {
-  // MSDN AggregateException
-  // https://docs.microsoft.com/en-us/dotnet/api/system.aggregateexception?view=netcore-2.1
-  class Program
+  public class Program
   {
     private static readonly Random _random = new Random();
 
-    static void Main(string[] args)
+    public static void Main(string[] args)
     {
       doProcess1();
 
