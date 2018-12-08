@@ -10,9 +10,9 @@ namespace PlayingWithAggregateException.Handlers
     {
     }
 
-    public override async Task HandleAsync(CancellationToken cancellationToken)
+    public override async Task HandleAsync(CancellationToken cancellationToken = default)
     {
-      await Task.Delay(100);
+      await Task.Delay(100, cancellationToken);
 
       throw new NotImplementedException();
     }

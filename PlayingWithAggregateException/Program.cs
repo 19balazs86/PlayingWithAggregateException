@@ -11,7 +11,7 @@ namespace PlayingWithAggregateException
   {
     private static readonly Random _random = new Random();
 
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
       doProcess1();
 
@@ -27,33 +27,45 @@ namespace PlayingWithAggregateException
           Console.WriteLine($"Here we have something for you: '{innerEx.Message}'");
       }
 
+      Console.WriteLine("-------- doProcess3 --------");
+
+      try
+      {
+        await doProcess3Async();
+      }
+      catch (AggregateException exp)
+      {
+        foreach (var innerEx in exp.Flatten().InnerExceptions)
+          Console.WriteLine($"Here we have something for you: '{innerEx.Message}'");
+      }
+
       Console.WriteLine("-------- Done --------");
     }
 
-    // This example: we manage all types of exceptions inside this method.
+    // Example: Using Task.WhenAll and manage all types of exceptions inside this method.
     private static void doProcess1()
     {
       List<INumberHandler> handlers = Enumerable.Range(0, 10).Select(n => getNumberHandler(n)).ToList();
 
-      using (CancellationTokenSource tokenSource = new CancellationTokenSource())
+      using (CancellationTokenSource cancelTokenSource = new CancellationTokenSource())
       {
         for (int batchPos = 0; batchPos < handlers.Count; batchPos += 3)
         {
+          Task[] tasks = handlers
+            .Skip(batchPos)
+            .Take(3)
+            .Select(h => h.HandleAsync(cancelTokenSource.Token)) // Need the async keyword in the implementation!
+            .ToArray();
+
           try
           {
-            Task[] tasks = handlers
-              .Skip(batchPos)
-              .Take(3)
-              .Select(h => h.HandleAsync(tokenSource.Token)) // Need the async keyword in the implementation!
-              .ToArray();
-
             Task.WaitAll(tasks);
-            // Or: await Task.WhenAll(tasks);
-            // Diff: https://stackoverflow.com/questions/6123406/waitall-vs-whenall
           }
           catch (AggregateException exp)
           {
             //var notImpExceptions = exp.Flatten().InnerExceptions.OfType<NotImplementedException>();
+
+            // Each iteration has an own AggregateException.
 
             foreach (Exception innerEx in exp.Flatten().InnerExceptions)
               Console.WriteLine(innerEx.Message);
@@ -62,33 +74,71 @@ namespace PlayingWithAggregateException
       }
     }
 
-    // This example: we handle the NotImplementedException and throw the rest.
+    // Example: Handle the NotImplementedException and throw the rest.
     private static void doProcess2()
     {
       IEnumerable<INumberHandler> handlers = Enumerable.Range(0, 5).Select(n => getNumberHandler(n));
 
-      using (CancellationTokenSource tokenSource = new CancellationTokenSource())
+      using (CancellationTokenSource cancelTokenSource = new CancellationTokenSource())
       {
+        Task[] tasks = handlers.Select(h => h.HandleAsync(cancelTokenSource.Token)).ToArray();
+
         try
         {
-          Task[] tasks = handlers.Select(h => h.HandleAsync(tokenSource.Token)).ToArray();
-
           Task.WaitAll(tasks);
         }
         catch (AggregateException exp)
         {
-          // If I do not know what to do.
+          // If you do not know what to do.
           // throw exp.Flatten();
 
-          // I know what should I do with this exception.
           exp.Handle(ex => {
             if (ex is NotImplementedException)
+            {
+              // I want to handle this type of exception.
               Console.WriteLine("You forgot to implement this method!");
+              return true;
+            }
 
-            return ex is NotImplementedException;
+            // The other types of exceptions will wrap in to AggregateException.
+            return false;
           });
         }
       }
+    }
+
+    // Example: Using await Task.WhenAll and manage all types of exceptions outside this method.
+    private static async Task doProcess3Async()
+    {
+      List<INumberHandler> handlers = Enumerable.Range(0, 10).Select(n => getNumberHandler(n)).ToList();
+
+      List<Exception> exceptions = new List<Exception>();
+
+      using (CancellationTokenSource cancelTokenSource = new CancellationTokenSource())
+      {
+        for (int batchPos = 0; batchPos < handlers.Count; batchPos += 3)
+        {
+          Task[] tasks = handlers
+            .Skip(batchPos)
+            .Take(3)
+            .Select(h => h.HandleAsync(cancelTokenSource.Token))
+            .ToArray();
+
+          try
+          {
+            await Task.WhenAll(tasks);
+          }
+          catch (Exception ex)
+          {
+            // Collect or handle the exceptions 1 by 1.
+            exceptions.Add(ex);
+          }
+        }
+      }
+
+      // Throw the collection.
+      if (exceptions.Count > 0)
+        throw new AggregateException("doProcess3Async has some exceptions.", exceptions);
     }
 
     private static INumberHandler getNumberHandler(int num)

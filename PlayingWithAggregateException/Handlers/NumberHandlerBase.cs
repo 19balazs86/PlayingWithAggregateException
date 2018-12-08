@@ -12,6 +12,6 @@ namespace PlayingWithAggregateException.Handlers
       MyNumber = num;
     }
 
-    public abstract Task HandleAsync(CancellationToken cancellationToken);
+    public abstract Task HandleAsync(CancellationToken cancellationToken = default);
   }
 }
