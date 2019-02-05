@@ -126,7 +126,9 @@ namespace PlayingWithAggregateException
 
           try
           {
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks); // If 1 task is failed, can happen, the others are not able to start.
+
+            Console.WriteLine("No Exception, otherwise this is not happening.");
           }
           catch (Exception ex)
           {
