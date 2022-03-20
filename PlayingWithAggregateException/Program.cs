@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using PlayingWithAggregateException.Handlers;
+﻿using PlayingWithAggregateException.Handlers;
 
 namespace PlayingWithAggregateException
 {
-  public class Program
+    public class Program
   {
     private static readonly Random _random = new Random();
 
